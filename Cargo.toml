@@ -1,0 +1,9 @@
+[package]
+  name = "icu4x-cmake"
+  edition = "2024"
+
+[lib]
+  path = "dummy.rs"
+
+[dependencies]
+  icu_capi = "2.2.0"
