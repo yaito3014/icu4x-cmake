@@ -16,10 +16,56 @@ elseif(WIN32)
 endif()
 set(_icu4x_lib_path ${CMAKE_CURRENT_LIST_DIR}/target/release/${_icu4x_lib_name})
 
+# The icu_capi static library depends on system libraries that a Rust static
+# library does not record on its own. Ask rustc to report them so downstream
+# linking works everywhere (notably MSVC, where they are not auto-linked).
+# rustc only emits the note when it actually compiles, so force a fresh build of
+# just icu_capi (its dependencies stay cached). The result is cached, so this
+# runs once per build tree; it front-loads the icu_capi build to configure time.
+if(NOT DEFINED ICU4X_NATIVE_STATIC_LIBS)
+    execute_process(
+        COMMAND ${CARGO_EXECUTABLE} clean --release -p icu_capi
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    )
+    execute_process(
+        COMMAND
+            ${CARGO_EXECUTABLE} rustc --release -p icu_capi --crate-type
+            staticlib -- --print native-static-libs
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        OUTPUT_QUIET
+        ERROR_VARIABLE _icu4x_rustc_stderr
+        RESULT_VARIABLE _icu4x_rustc_result
+    )
+    set(_icu4x_native_libs "")
+    if(
+        _icu4x_rustc_result EQUAL 0
+        AND _icu4x_rustc_stderr MATCHES "native-static-libs: ([^\n]*)"
+    )
+        string(STRIP "${CMAKE_MATCH_1}" _icu4x_native_libs_line)
+        string(
+            REGEX REPLACE " +"
+            ";"
+            _icu4x_native_libs
+            "${_icu4x_native_libs_line}"
+        )
+    else()
+        message(
+            WARNING
+            "icu4x: could not determine the native libraries required to link icu_capi; downstream linking may fail on some platforms."
+        )
+    endif()
+    set(ICU4X_NATIVE_STATIC_LIBS
+        "${_icu4x_native_libs}"
+        CACHE INTERNAL
+        "System libraries required to link the icu_capi static library"
+    )
+endif()
+
 add_custom_command(
     OUTPUT ${_icu4x_lib_path}
     COMMAND
         ${CARGO_EXECUTABLE} rustc --release -p icu_capi --crate-type staticlib
+        -- --print native-static-libs
     DEPENDS
         ${CMAKE_CURRENT_LIST_DIR}/Cargo.toml
         ${CMAKE_CURRENT_LIST_DIR}/Cargo.lock
@@ -39,7 +85,9 @@ endif()
 add_library(_icu4x_imported STATIC IMPORTED GLOBAL)
 set_target_properties(
     _icu4x_imported
-    PROPERTIES IMPORTED_LOCATION ${_icu4x_lib_path}
+    PROPERTIES
+        IMPORTED_LOCATION ${_icu4x_lib_path}
+        INTERFACE_LINK_LIBRARIES "${ICU4X_NATIVE_STATIC_LIBS}"
 )
 add_dependencies(_icu4x_imported _icu4x_build)
 
