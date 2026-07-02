@@ -5,6 +5,7 @@ project(icu4x VERSION 2.2.0 LANGUAGES NONE)
 option(ICU4X_INSTALL "Generate install rules for icu4x" ${PROJECT_IS_TOP_LEVEL})
 
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
 
@@ -83,22 +84,16 @@ add_library(icu4x::icu4x ALIAS icu4x)
 # doubles as a version gate.
 if(DEFINED CMAKE_FIND_PACKAGE_REDIRECTS_DIR AND NOT PROJECT_IS_TOP_LEVEL)
     file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config.cmake"
-"# icu4x::icu4x is already defined by the add_subdirectory() call that
+[[# icu4x::icu4x is already defined by the add_subdirectory() call that
 # FetchContent performed before redirecting find_package(icu4x) here, so this
 # config only needs to exist. Version handling lives in the companion
 # icu4x-config-version.cmake file.
-")
-    file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config-version.cmake"
-"set(PACKAGE_VERSION ${PROJECT_VERSION})
-if(PACKAGE_VERSION VERSION_LESS PACKAGE_FIND_VERSION)
-  set(PACKAGE_VERSION_COMPATIBLE FALSE)
-else()
-  set(PACKAGE_VERSION_COMPATIBLE TRUE)
-  if(PACKAGE_VERSION VERSION_EQUAL PACKAGE_FIND_VERSION)
-    set(PACKAGE_VERSION_EXACT TRUE)
-  endif()
-endif()
-")
+]])
+    write_basic_package_version_file(
+        "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config-version.cmake"
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
 endif()
 
 # --- Install path -----------------------------------------------------------
@@ -107,8 +102,6 @@ endif()
 # library and the ICU4X C++ bindings headers into the install tree and ships a
 # hand-written config that rebuilds the imported targets there.
 if(ICU4X_INSTALL)
-    include(CMakePackageConfigHelpers)
-
     install(FILES ${_icu4x_lib_path}
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
