@@ -14,15 +14,20 @@ if(NOT TARGET icu4x::icu4x)
     # build-tree target of the same name; it deliberately carries no include
     # directories. Downstream code must link icu4x::icu4x, not this.
     add_library(_icu4x_imported STATIC IMPORTED)
-    set_target_properties(_icu4x_imported PROPERTIES
-        IMPORTED_LOCATION "@PACKAGE_CMAKE_INSTALL_LIBDIR@/${_icu4x_lib_name}"
+    set_target_properties(
+        _icu4x_imported
+        PROPERTIES
+            IMPORTED_LOCATION
+                "@PACKAGE_CMAKE_INSTALL_LIBDIR@/${_icu4x_lib_name}"
     )
 
     # Public target: bundles the static library and the ICU4X C++ headers.
     add_library(icu4x::icu4x INTERFACE IMPORTED)
-    set_target_properties(icu4x::icu4x PROPERTIES
-        INTERFACE_LINK_LIBRARIES _icu4x_imported
-        INTERFACE_INCLUDE_DIRECTORIES "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@"
+    set_target_properties(
+        icu4x::icu4x
+        PROPERTIES
+            INTERFACE_LINK_LIBRARIES _icu4x_imported
+            INTERFACE_INCLUDE_DIRECTORIES "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@"
     )
 
     unset(_icu4x_lib_name)

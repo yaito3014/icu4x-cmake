@@ -68,9 +68,11 @@ get_filename_component(_icu4x_manifest_dir ${_icu4x_manifest_path} DIRECTORY)
 
 add_library(icu4x INTERFACE)
 target_link_libraries(icu4x INTERFACE _icu4x_imported)
-target_include_directories(icu4x INTERFACE
-    $<BUILD_INTERFACE:${_icu4x_manifest_dir}/bindings/cpp>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+target_include_directories(
+    icu4x
+    INTERFACE
+        $<BUILD_INTERFACE:${_icu4x_manifest_dir}/bindings/cpp>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 add_library(icu4x::icu4x ALIAS icu4x)
@@ -83,13 +85,15 @@ add_library(icu4x::icu4x ALIAS icu4x)
 # which is also the minimum required to use OVERRIDE_FIND_PACKAGE, so the guard
 # doubles as a version gate.
 if(DEFINED CMAKE_FIND_PACKAGE_REDIRECTS_DIR AND NOT PROJECT_IS_TOP_LEVEL)
-    file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config.cmake"
-[[
+    file(
+        WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config.cmake"
+        [[
 # icu4x::icu4x is already defined by the add_subdirectory() call that
 # FetchContent performed before redirecting find_package(icu4x) here, so this
 # config only needs to exist. Version handling lives in the companion
 # icu4x-config-version.cmake file.
-]])
+]]
+    )
     write_basic_package_version_file(
         "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config-version.cmake"
         VERSION ${PROJECT_VERSION}
@@ -103,11 +107,10 @@ endif()
 # library and the ICU4X C++ bindings headers into the install tree and ships a
 # hand-written config that rebuilds the imported targets there.
 if(ICU4X_INSTALL)
-    install(FILES ${_icu4x_lib_path}
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    )
+    install(FILES ${_icu4x_lib_path} DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-    install(DIRECTORY ${_icu4x_manifest_dir}/bindings/cpp/
+    install(
+        DIRECTORY ${_icu4x_manifest_dir}/bindings/cpp/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 
@@ -124,9 +127,10 @@ if(ICU4X_INSTALL)
         COMPATIBILITY SameMajorVersion
     )
 
-    install(FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config-version.cmake
+    install(
+        FILES
+            ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config-version.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/icu4x
     )
 endif()
