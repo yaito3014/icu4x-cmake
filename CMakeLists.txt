@@ -23,10 +23,16 @@ set(_icu4x_lib_path ${CMAKE_CURRENT_LIST_DIR}/target/release/${_icu4x_lib_name})
 # just icu_capi (its dependencies stay cached). The result is cached, so this
 # runs once per build tree; it front-loads the icu_capi build to configure time.
 if(NOT DEFINED ICU4X_NATIVE_STATIC_LIBS)
+    message(
+        STATUS
+        "icu4x: building icu_capi to detect its native link libraries (the first configure can take a minute)..."
+    )
     execute_process(
         COMMAND ${CARGO_EXECUTABLE} clean --release -p icu_capi
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     )
+    # Capture stderr to parse the native-static-libs note, but also echo it so
+    # the compile does not look like a hung configure step.
     execute_process(
         COMMAND
             ${CARGO_EXECUTABLE} rustc --release -p icu_capi --crate-type
@@ -34,6 +40,7 @@ if(NOT DEFINED ICU4X_NATIVE_STATIC_LIBS)
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
         OUTPUT_QUIET
         ERROR_VARIABLE _icu4x_rustc_stderr
+        ECHO_ERROR_VARIABLE
         RESULT_VARIABLE _icu4x_rustc_result
     )
     set(_icu4x_native_libs "")
