@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(icu4x VERSION 2.2.0 LANGUAGES NONE)
+project(icu4x VERSION 2.2.0 LANGUAGES CXX)
 
 option(ICU4X_INSTALL "Generate install rules for icu4x" ${PROJECT_IS_TOP_LEVEL})
 
