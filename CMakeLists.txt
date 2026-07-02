@@ -37,6 +37,7 @@ if(NOT DEFINED ICU4X_NATIVE_STATIC_LIBS)
         RESULT_VARIABLE _icu4x_rustc_result
     )
     set(_icu4x_native_libs "")
+    set(_icu4x_native_link_options "")
     if(
         _icu4x_rustc_result EQUAL 0
         AND _icu4x_rustc_stderr MATCHES "native-static-libs: ([^\n]*)"
@@ -45,9 +46,21 @@ if(NOT DEFINED ICU4X_NATIVE_STATIC_LIBS)
         string(
             REGEX REPLACE " +"
             ";"
-            _icu4x_native_libs
+            _icu4x_native_items
             "${_icu4x_native_libs_line}"
         )
+        # rustc lists actual libraries (kernel32.lib, -lpthread, ...) alongside
+        # bare linker directives (notably MSVC's /defaultlib:msvcrt). Only the
+        # former belong in INTERFACE_LINK_LIBRARIES; "/"-prefixed directives must
+        # go to INTERFACE_LINK_OPTIONS so the linker receives them as flags
+        # rather than being mistaken for library files.
+        foreach(_item IN LISTS _icu4x_native_items)
+            if(_item MATCHES "^/")
+                list(APPEND _icu4x_native_link_options "${_item}")
+            else()
+                list(APPEND _icu4x_native_libs "${_item}")
+            endif()
+        endforeach()
     else()
         message(
             WARNING
@@ -58,6 +71,11 @@ if(NOT DEFINED ICU4X_NATIVE_STATIC_LIBS)
         "${_icu4x_native_libs}"
         CACHE INTERNAL
         "System libraries required to link the icu_capi static library"
+    )
+    set(ICU4X_NATIVE_STATIC_LINK_OPTIONS
+        "${_icu4x_native_link_options}"
+        CACHE INTERNAL
+        "Linker options required to link the icu_capi static library"
     )
 endif()
 
@@ -88,6 +106,7 @@ set_target_properties(
     PROPERTIES
         IMPORTED_LOCATION ${_icu4x_lib_path}
         INTERFACE_LINK_LIBRARIES "${ICU4X_NATIVE_STATIC_LIBS}"
+        INTERFACE_LINK_OPTIONS "${ICU4X_NATIVE_STATIC_LINK_OPTIONS}"
 )
 add_dependencies(_icu4x_imported _icu4x_build)
 
