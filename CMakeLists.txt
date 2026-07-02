@@ -17,74 +17,13 @@ endif()
 set(_icu4x_lib_path ${CMAKE_CURRENT_LIST_DIR}/target/release/${_icu4x_lib_name})
 
 # The icu_capi static library depends on system libraries that a Rust static
-# library does not record on its own. Ask rustc to report them so downstream
-# linking works everywhere (notably MSVC, where they are not auto-linked).
-# rustc only emits the note when it actually compiles, so force a fresh build of
-# just icu_capi (its dependencies stay cached). The result is cached, so this
-# runs once per build tree; it front-loads the icu_capi build to configure time.
-if(NOT DEFINED ICU4X_NATIVE_STATIC_LIBS)
-    message(
-        STATUS
-        "icu4x: building icu_capi to detect its native link libraries (the first configure can take a minute)..."
-    )
-    execute_process(
-        COMMAND ${CARGO_EXECUTABLE} clean --release -p icu_capi
-        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    )
-    # Capture stderr to parse the native-static-libs note, but also echo it so
-    # the compile does not look like a hung configure step.
-    execute_process(
-        COMMAND
-            ${CARGO_EXECUTABLE} rustc --release -p icu_capi --crate-type
-            staticlib -- --print native-static-libs
-        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-        OUTPUT_QUIET
-        ERROR_VARIABLE _icu4x_rustc_stderr
-        ECHO_ERROR_VARIABLE
-        RESULT_VARIABLE _icu4x_rustc_result
-    )
-    set(_icu4x_native_libs "")
-    set(_icu4x_native_link_options "")
-    if(
-        _icu4x_rustc_result EQUAL 0
-        AND _icu4x_rustc_stderr MATCHES "native-static-libs: ([^\n]*)"
-    )
-        string(STRIP "${CMAKE_MATCH_1}" _icu4x_native_libs_line)
-        string(
-            REGEX REPLACE " +"
-            ";"
-            _icu4x_native_items
-            "${_icu4x_native_libs_line}"
-        )
-        # rustc lists actual libraries (kernel32.lib, -lpthread, ...) alongside
-        # bare linker directives (notably MSVC's /defaultlib:msvcrt). Only the
-        # former belong in INTERFACE_LINK_LIBRARIES; "/"-prefixed directives must
-        # go to INTERFACE_LINK_OPTIONS so the linker receives them as flags
-        # rather than being mistaken for library files.
-        foreach(_item IN LISTS _icu4x_native_items)
-            if(_item MATCHES "^/")
-                list(APPEND _icu4x_native_link_options "${_item}")
-            else()
-                list(APPEND _icu4x_native_libs "${_item}")
-            endif()
-        endforeach()
-    else()
-        message(
-            WARNING
-            "icu4x: could not determine the native libraries required to link icu_capi; downstream linking may fail on some platforms."
-        )
-    endif()
-    set(ICU4X_NATIVE_STATIC_LIBS
-        "${_icu4x_native_libs}"
-        CACHE INTERNAL
-        "System libraries required to link the icu_capi static library"
-    )
-    set(ICU4X_NATIVE_STATIC_LINK_OPTIONS
-        "${_icu4x_native_link_options}"
-        CACHE INTERNAL
-        "Linker options required to link the icu_capi static library"
-    )
-endif()
+# library does not record on its own, and they must be linked for downstream
+# linking to succeed (notably on MSVC, where they are not auto-linked). Rather
+# than compile icu_capi at configure time to discover them, the lists are
+# embedded per platform. Their accuracy is checked against
+# `rustc --print native-static-libs` in CI (see cmake/verify-native-static-libs.cmake).
+# This sets ICU4X_NATIVE_STATIC_LIBS and ICU4X_NATIVE_STATIC_LINK_OPTIONS.
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/native-static-libs.cmake)
 
 add_custom_command(
     OUTPUT ${_icu4x_lib_path}
