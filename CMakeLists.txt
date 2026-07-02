@@ -1,12 +1,25 @@
 cmake_minimum_required(VERSION 3.20)
 
+project(icu4x VERSION 2.2.0 LANGUAGES NONE)
+
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(_icu4x_top_level TRUE)
+else()
+    set(_icu4x_top_level FALSE)
+endif()
+
+option(ICU4X_INSTALL "Generate install rules for icu4x" ${_icu4x_top_level})
+
+include(GNUInstallDirs)
+
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
 
 if(UNIX)
-    set(_icu4x_lib_path ${CMAKE_CURRENT_LIST_DIR}/target/release/libicu_capi.a)
+    set(_icu4x_lib_name libicu_capi.a)
 elseif(WIN32)
-    set(_icu4x_lib_path ${CMAKE_CURRENT_LIST_DIR}/target/release/icu_capi.lib)
+    set(_icu4x_lib_name icu_capi.lib)
 endif()
+set(_icu4x_lib_path ${CMAKE_CURRENT_LIST_DIR}/target/release/${_icu4x_lib_name})
 
 add_custom_command(
     OUTPUT ${_icu4x_lib_path}
@@ -17,7 +30,16 @@ add_custom_command(
         ${CMAKE_CURRENT_LIST_DIR}/Cargo.lock
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
 )
-add_custom_target(_icu4x_build DEPENDS "${_icu4x_lib_path}")
+
+# When built standalone (e.g. to produce an install tree), build the static
+# library as part of the default target so `cmake --build` populates it before
+# `cmake --install`. When consumed as a subproject it is built on demand via
+# the dependency below.
+if(_icu4x_top_level)
+    add_custom_target(_icu4x_build ALL DEPENDS "${_icu4x_lib_path}")
+else()
+    add_custom_target(_icu4x_build DEPENDS "${_icu4x_lib_path}")
+endif()
 
 add_library(_icu4x_imported STATIC IMPORTED GLOBAL)
 set_target_properties(
@@ -51,6 +73,67 @@ get_filename_component(_icu4x_manifest_dir ${_icu4x_manifest_path} DIRECTORY)
 
 add_library(icu4x INTERFACE)
 target_link_libraries(icu4x INTERFACE _icu4x_imported)
-target_include_directories(icu4x INTERFACE ${_icu4x_manifest_dir}/bindings/cpp)
+target_include_directories(icu4x INTERFACE
+    $<BUILD_INTERFACE:${_icu4x_manifest_dir}/bindings/cpp>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 
 add_library(icu4x::icu4x ALIAS icu4x)
+
+# --- Consumption via FetchContent(OVERRIDE_FIND_PACKAGE) --------------------
+# When a consumer declares this project with OVERRIDE_FIND_PACKAGE and then
+# calls find_package(icu4x), FetchContent redirects the call to the targets
+# defined above. Provide a redirected config so find_package(icu4x [version])
+# resolves cleanly. CMAKE_FIND_PACKAGE_REDIRECTS_DIR only exists on CMake >= 3.24,
+# which is also the minimum required to use OVERRIDE_FIND_PACKAGE, so the guard
+# doubles as a version gate.
+if(DEFINED CMAKE_FIND_PACKAGE_REDIRECTS_DIR AND NOT _icu4x_top_level)
+    file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config.cmake" "")
+    file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config-version.cmake"
+"set(PACKAGE_VERSION ${PROJECT_VERSION})
+if(PACKAGE_VERSION VERSION_LESS PACKAGE_FIND_VERSION)
+  set(PACKAGE_VERSION_COMPATIBLE FALSE)
+else()
+  set(PACKAGE_VERSION_COMPATIBLE TRUE)
+  if(PACKAGE_VERSION VERSION_EQUAL PACKAGE_FIND_VERSION)
+    set(PACKAGE_VERSION_EXACT TRUE)
+  endif()
+endif()
+")
+endif()
+
+# --- Install path -----------------------------------------------------------
+# Produce a relocatable installed package so downstream projects can use
+# find_package(icu4x) against the install prefix. Copies the prebuilt static
+# library and the ICU4X C++ bindings headers into the install tree and ships a
+# hand-written config that rebuilds the imported targets there.
+if(ICU4X_INSTALL)
+    include(CMakePackageConfigHelpers)
+
+    install(FILES ${_icu4x_lib_path}
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+
+    install(DIRECTORY ${_icu4x_manifest_dir}/bindings/cpp/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+
+    configure_package_config_file(
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/icu4x-config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/icu4x
+        PATH_VARS CMAKE_INSTALL_LIBDIR CMAKE_INSTALL_INCLUDEDIR
+    )
+
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config-version.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config-version.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/icu4x
+    )
+endif()

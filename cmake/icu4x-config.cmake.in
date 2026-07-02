@@ -1,0 +1,27 @@
+@PACKAGE_INIT@
+
+# icu4x is distributed as a prebuilt static library plus the ICU4X C++ bindings
+# headers. Recreate the imported targets against the install prefix so this
+# package is relocatable.
+if(NOT TARGET icu4x::icu4x)
+    if(WIN32)
+        set(_icu4x_lib_name icu_capi.lib)
+    else()
+        set(_icu4x_lib_name libicu_capi.a)
+    endif()
+
+    add_library(icu4x::icu_capi STATIC IMPORTED)
+    set_target_properties(icu4x::icu_capi PROPERTIES
+        IMPORTED_LOCATION "@PACKAGE_CMAKE_INSTALL_LIBDIR@/${_icu4x_lib_name}"
+    )
+
+    add_library(icu4x::icu4x INTERFACE IMPORTED)
+    set_target_properties(icu4x::icu4x PROPERTIES
+        INTERFACE_LINK_LIBRARIES icu4x::icu_capi
+        INTERFACE_INCLUDE_DIRECTORIES "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@"
+    )
+
+    unset(_icu4x_lib_name)
+endif()
+
+check_required_components(icu4x)
