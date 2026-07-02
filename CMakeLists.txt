@@ -90,7 +90,6 @@ add_custom_command(
     OUTPUT ${_icu4x_lib_path}
     COMMAND
         ${CARGO_EXECUTABLE} rustc --release -p icu_capi --crate-type staticlib
-        -- --print native-static-libs
     DEPENDS
         ${CMAKE_CURRENT_LIST_DIR}/Cargo.toml
         ${CMAKE_CURRENT_LIST_DIR}/Cargo.lock
