@@ -35,11 +35,13 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
 )
 
-# When built standalone (e.g. to produce an install tree), build the static
-# library as part of the default target so `cmake --build` populates it before
-# `cmake --install`. When consumed as a subproject it is built on demand via
-# the dependency below.
-if(PROJECT_IS_TOP_LEVEL)
+# Build the static library as part of the default target whenever we might
+# install it, so `cmake --build` populates ${_icu4x_lib_path} before
+# `cmake --install` copies it. This covers both a top-level build and a
+# subproject that opted into ICU4X_INSTALL. Otherwise (consumed as a subproject
+# without install), it is built on demand via the dependency below when
+# something links icu4x.
+if(PROJECT_IS_TOP_LEVEL OR ICU4X_INSTALL)
     add_custom_target(_icu4x_build ALL DEPENDS "${_icu4x_lib_path}")
 else()
     add_custom_target(_icu4x_build DEPENDS "${_icu4x_lib_path}")
