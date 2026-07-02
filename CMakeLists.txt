@@ -82,7 +82,12 @@ add_library(icu4x::icu4x ALIAS icu4x)
 # which is also the minimum required to use OVERRIDE_FIND_PACKAGE, so the guard
 # doubles as a version gate.
 if(DEFINED CMAKE_FIND_PACKAGE_REDIRECTS_DIR AND NOT PROJECT_IS_TOP_LEVEL)
-    file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config.cmake" "")
+    file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config.cmake"
+"# icu4x::icu4x is already defined by the add_subdirectory() call that
+# FetchContent performed before redirecting find_package(icu4x) here, so this
+# config only needs to exist. Version handling lives in the companion
+# icu4x-config-version.cmake file.
+")
     file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config-version.cmake"
 "set(PACKAGE_VERSION ${PROJECT_VERSION})
 if(PACKAGE_VERSION VERSION_LESS PACKAGE_FIND_VERSION)
