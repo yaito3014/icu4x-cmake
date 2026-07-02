@@ -84,7 +84,8 @@ add_library(icu4x::icu4x ALIAS icu4x)
 # doubles as a version gate.
 if(DEFINED CMAKE_FIND_PACKAGE_REDIRECTS_DIR AND NOT PROJECT_IS_TOP_LEVEL)
     file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config.cmake"
-[[# icu4x::icu4x is already defined by the add_subdirectory() call that
+[[
+# icu4x::icu4x is already defined by the add_subdirectory() call that
 # FetchContent performed before redirecting find_package(icu4x) here, so this
 # config only needs to exist. Version handling lives in the companion
 # icu4x-config-version.cmake file.
