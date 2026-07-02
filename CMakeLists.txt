@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(icu4x VERSION 2.2.0 LANGUAGES CXX)
+project(icu4x LANGUAGES CXX)
 
 option(ICU4X_INSTALL "Generate install rules for icu4x" ${PROJECT_IS_TOP_LEVEL})
 
@@ -75,6 +75,16 @@ foreach(_i RANGE ${_icu4x_pkg_len_minus_one})
             ${_i}
             manifest_path
         )
+        # Report the actually-resolved icu_capi version in the package config
+        # rather than a hardcoded string, so find_package(icu4x <version>)
+        # reflects the headers and library that are really shipped.
+        string(
+            JSON _icu4x_version
+            GET ${_icu4x_metadata}
+            packages
+            ${_i}
+            version
+        )
         break()
     endif()
 endforeach()
@@ -110,7 +120,7 @@ if(DEFINED CMAKE_FIND_PACKAGE_REDIRECTS_DIR AND NOT PROJECT_IS_TOP_LEVEL)
     )
     write_basic_package_version_file(
         "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config-version.cmake"
-        VERSION ${PROJECT_VERSION}
+        VERSION ${_icu4x_version}
         COMPATIBILITY SameMajorVersion
     )
 endif()
@@ -123,8 +133,19 @@ endif()
 if(ICU4X_INSTALL)
     install(FILES ${_icu4x_lib_path} DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
+    # Stage the ICU4X C++ headers out of the cargo registry cache into the build
+    # tree at configure time, then install from there. This keeps
+    # `cmake --install` independent of the registry cache, which may be evicted
+    # between configure and install; install(DIRECTORY) from a missing source
+    # would otherwise silently install no headers. (file(COPY) also fails loudly
+    # here if the headers are somehow absent at configure time.)
+    set(_icu4x_staged_include ${CMAKE_CURRENT_BINARY_DIR}/icu4x-include)
+    file(
+        COPY ${_icu4x_manifest_dir}/bindings/cpp/
+        DESTINATION ${_icu4x_staged_include}
+    )
     install(
-        DIRECTORY ${_icu4x_manifest_dir}/bindings/cpp/
+        DIRECTORY ${_icu4x_staged_include}/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 
@@ -137,7 +158,7 @@ if(ICU4X_INSTALL)
 
     write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config-version.cmake
-        VERSION ${PROJECT_VERSION}
+        VERSION ${_icu4x_version}
         COMPATIBILITY SameMajorVersion
     )
 
