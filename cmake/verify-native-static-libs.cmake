@@ -31,8 +31,8 @@ execute_process(
 )
 execute_process(
     COMMAND
-        cargo rustc --release -p icu_capi --crate-type staticlib -- --print
-        native-static-libs
+        cargo rustc --color never --release -p icu_capi --crate-type staticlib
+        -- --print native-static-libs
     WORKING_DIRECTORY ${_repo}
     OUTPUT_QUIET
     ERROR_VARIABLE _stderr
@@ -41,6 +41,10 @@ execute_process(
 if(NOT _result EQUAL 0)
     message(FATAL_ERROR "cargo rustc failed (${_result}):\n${_stderr}")
 endif()
+# Strip any ANSI color escapes, in case a CI environment forces colored output
+# (e.g. CARGO_TERM_COLOR=always) despite --color never.
+string(ASCII 27 _esc)
+string(REGEX REPLACE "${_esc}\\[[0-9;]*m" "" _stderr "${_stderr}")
 if(NOT _stderr MATCHES "native-static-libs: ([^\n]*)")
     message(
         FATAL_ERROR
