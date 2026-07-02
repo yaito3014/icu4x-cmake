@@ -1,14 +1,8 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.21)
 
 project(icu4x VERSION 2.2.0 LANGUAGES NONE)
 
-if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-    set(_icu4x_top_level TRUE)
-else()
-    set(_icu4x_top_level FALSE)
-endif()
-
-option(ICU4X_INSTALL "Generate install rules for icu4x" ${_icu4x_top_level})
+option(ICU4X_INSTALL "Generate install rules for icu4x" ${PROJECT_IS_TOP_LEVEL})
 
 include(GNUInstallDirs)
 
@@ -35,7 +29,7 @@ add_custom_command(
 # library as part of the default target so `cmake --build` populates it before
 # `cmake --install`. When consumed as a subproject it is built on demand via
 # the dependency below.
-if(_icu4x_top_level)
+if(PROJECT_IS_TOP_LEVEL)
     add_custom_target(_icu4x_build ALL DEPENDS "${_icu4x_lib_path}")
 else()
     add_custom_target(_icu4x_build DEPENDS "${_icu4x_lib_path}")
@@ -87,7 +81,7 @@ add_library(icu4x::icu4x ALIAS icu4x)
 # resolves cleanly. CMAKE_FIND_PACKAGE_REDIRECTS_DIR only exists on CMake >= 3.24,
 # which is also the minimum required to use OVERRIDE_FIND_PACKAGE, so the guard
 # doubles as a version gate.
-if(DEFINED CMAKE_FIND_PACKAGE_REDIRECTS_DIR AND NOT _icu4x_top_level)
+if(DEFINED CMAKE_FIND_PACKAGE_REDIRECTS_DIR AND NOT PROJECT_IS_TOP_LEVEL)
     file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config.cmake" "")
     file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config-version.cmake"
 "set(PACKAGE_VERSION ${PROJECT_VERSION})
