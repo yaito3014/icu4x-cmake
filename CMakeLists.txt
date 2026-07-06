@@ -9,11 +9,9 @@ include(CMakePackageConfigHelpers)
 
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
 
-if(UNIX)
-    set(_icu4x_lib_name libicu_capi.a)
-elseif(WIN32)
-    set(_icu4x_lib_name icu_capi.lib)
-endif()
+set(_icu4x_lib_name
+    "${CMAKE_STATIC_LIBRARY_PREFIX}icu_capi${CMAKE_STATIC_LIBRARY_SUFFIX}"
+)
 set(_icu4x_lib_path ${CMAKE_CURRENT_LIST_DIR}/target/release/${_icu4x_lib_name})
 
 # The icu_capi static library depends on system libraries that a Rust static
@@ -90,6 +88,14 @@ foreach(_i RANGE ${_icu4x_pkg_len_minus_one})
 endforeach()
 get_filename_component(_icu4x_manifest_dir ${_icu4x_manifest_path} DIRECTORY)
 
+if(NOT _icu4x_manifest_dir)
+    message(
+        FATAL_ERROR
+        "icu4x: could not locate the icu_capi package via `cargo metadata`; "
+        "its C++ bindings headers cannot be found."
+    )
+endif()
+
 add_library(icu4x INTERFACE)
 target_link_libraries(icu4x INTERFACE _icu4x_imported)
 target_include_directories(
@@ -143,6 +149,9 @@ if(ICU4X_INSTALL)
     file(
         COPY ${_icu4x_manifest_dir}/bindings/cpp/
         DESTINATION ${_icu4x_staged_include}
+        FILES_MATCHING
+        PATTERN "*.hpp"
+        PATTERN "*.h"
     )
     install(
         DIRECTORY ${_icu4x_staged_include}/

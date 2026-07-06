@@ -4,11 +4,11 @@
 # headers. Recreate the imported targets against the install prefix so this
 # package is relocatable.
 if(NOT TARGET icu4x::icu4x)
-    if(WIN32)
-        set(_icu4x_lib_name icu_capi.lib)
-    else()
-        set(_icu4x_lib_name libicu_capi.a)
-    endif()
+    # Static library file name, baked at install time from the platform that
+    # built it (the archive is platform-specific, so no runtime branch needed).
+    set(_icu4x_lib_name
+        "@CMAKE_STATIC_LIBRARY_PREFIX@icu_capi@CMAKE_STATIC_LIBRARY_SUFFIX@"
+    )
 
     # Private imported target for the prebuilt static library. Mirrors the
     # build-tree target of the same name; it deliberately carries no include
