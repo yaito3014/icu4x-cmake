@@ -41,10 +41,6 @@ execute_process(
 if(NOT _result EQUAL 0)
     message(FATAL_ERROR "cargo rustc failed (${_result}):\n${_stderr}")
 endif()
-# Strip any ANSI color escapes, in case a CI environment forces colored output
-# (e.g. CARGO_TERM_COLOR=always) despite --color never.
-string(ASCII 27 _esc)
-string(REGEX REPLACE "${_esc}\\[[0-9;]*m" "" _stderr "${_stderr}")
 if(NOT _stderr MATCHES "native-static-libs: ([^\n]*)")
     message(
         FATAL_ERROR
