@@ -59,7 +59,15 @@ execute_process(
     COMMAND ${CARGO_EXECUTABLE} metadata --format-version 1
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     OUTPUT_VARIABLE _icu4x_metadata
+    RESULT_VARIABLE _icu4x_metadata_result
 )
+if(NOT _icu4x_metadata_result EQUAL 0)
+    message(
+        FATAL_ERROR
+        "icu4x: `cargo metadata` failed (${_icu4x_metadata_result}); "
+        "cannot locate the icu_capi package or its C++ bindings headers."
+    )
+endif()
 
 string(JSON _icu4x_pkg_len LENGTH ${_icu4x_metadata} packages)
 math(EXPR _icu4x_pkg_len_minus_one "${_icu4x_pkg_len} - 1")
