@@ -1,0 +1,43 @@
+name: native-static-libs
+
+# Verify that the native link libraries embedded in
+# cmake/native-static-libs.cmake still match what rustc reports on each
+# platform. If icu_capi or the Rust toolchain changes what it links against,
+# this job fails and prints the values to update the table with.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: verify (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-latest
+          - name: macos
+            os: macos-latest
+          - name: windows-msvc
+            os: windows-latest
+          # The windows-latest runner ships a MinGW GCC toolchain, so we can
+          # build the windows-gnu target here to verify its native-static-libs.
+          - name: windows-gnu
+            os: windows-latest
+            rust_target: x86_64-pc-windows-gnu
+            verify_target: x86_64-pc-windows-gnu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Verify embedded native-static-libs
+        env:
+          ICU4X_VERIFY_TARGET: ${{ matrix.verify_target }}
+        run: cmake -P cmake/verify-native-static-libs.cmake
