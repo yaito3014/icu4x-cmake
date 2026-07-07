@@ -10,8 +10,8 @@ include(CMakePackageConfigHelpers)
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
 
 execute_process(
-    COMMAND ${CARGO_EXECUTABLE} metadata --format-version 1
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    COMMAND "${CARGO_EXECUTABLE}" metadata --format-version 1
+    WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
     OUTPUT_VARIABLE _icu4x_metadata
     RESULT_VARIABLE _icu4x_metadata_result
 )
@@ -25,28 +25,28 @@ endif()
 
 # cargo honours CARGO_TARGET_DIR and workspace target directories, so ask
 # metadata where build artifacts actually land instead of assuming ./target.
-string(JSON _icu4x_target_dir GET ${_icu4x_metadata} target_directory)
+string(JSON _icu4x_target_dir GET "${_icu4x_metadata}" target_directory)
 
 set(_icu4x_lib_name
     "${CMAKE_STATIC_LIBRARY_PREFIX}icu_capi${CMAKE_STATIC_LIBRARY_SUFFIX}"
 )
-set(_icu4x_lib_path ${_icu4x_target_dir}/release/${_icu4x_lib_name})
+set(_icu4x_lib_path "${_icu4x_target_dir}/release/${_icu4x_lib_name}")
 
 # Sets ICU4X_NATIVE_STATIC_LIBS and ICU4X_NATIVE_STATIC_LINK_OPTIONS -- the
 # system libraries icu_capi must be linked against. See the file for rationale.
-include(${CMAKE_CURRENT_LIST_DIR}/cmake/native-static-libs.cmake)
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/native-static-libs.cmake")
 
 # icu_capi is always built for the host target; no --target is passed, so
 # cross-compilation (a CMAKE_TOOLCHAIN_FILE targeting another arch/OS) is not
 # supported.
 add_custom_command(
-    OUTPUT ${_icu4x_lib_path}
+    OUTPUT "${_icu4x_lib_path}"
     COMMAND
-        ${CARGO_EXECUTABLE} rustc --release -p icu_capi --crate-type staticlib
+        "${CARGO_EXECUTABLE}" rustc --release -p icu_capi --crate-type staticlib
     DEPENDS
-        ${CMAKE_CURRENT_LIST_DIR}/Cargo.toml
-        ${CMAKE_CURRENT_LIST_DIR}/Cargo.lock
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        "${CMAKE_CURRENT_LIST_DIR}/Cargo.toml"
+        "${CMAKE_CURRENT_LIST_DIR}/Cargo.lock"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
 )
 
 # Build the static library as part of the default target whenever we might
@@ -65,20 +65,20 @@ add_library(_icu4x_imported STATIC IMPORTED GLOBAL)
 set_target_properties(
     _icu4x_imported
     PROPERTIES
-        IMPORTED_LOCATION ${_icu4x_lib_path}
+        IMPORTED_LOCATION "${_icu4x_lib_path}"
         INTERFACE_LINK_LIBRARIES "${ICU4X_NATIVE_STATIC_LIBS}"
         INTERFACE_LINK_OPTIONS "${ICU4X_NATIVE_STATIC_LINK_OPTIONS}"
 )
 add_dependencies(_icu4x_imported _icu4x_build)
 
-string(JSON _icu4x_pkg_len LENGTH ${_icu4x_metadata} packages)
+string(JSON _icu4x_pkg_len LENGTH "${_icu4x_metadata}" packages)
 math(EXPR _icu4x_pkg_len_minus_one "${_icu4x_pkg_len} - 1")
 foreach(_i RANGE ${_icu4x_pkg_len_minus_one})
-    string(JSON _pkg_name GET ${_icu4x_metadata} packages ${_i} name)
+    string(JSON _pkg_name GET "${_icu4x_metadata}" packages ${_i} name)
     if(_pkg_name STREQUAL icu_capi)
         string(
             JSON _icu4x_manifest_path
-            GET ${_icu4x_metadata}
+            GET "${_icu4x_metadata}"
             packages
             ${_i}
             manifest_path
@@ -88,7 +88,7 @@ foreach(_i RANGE ${_icu4x_pkg_len_minus_one})
         # reflects the headers and library that are really shipped.
         string(
             JSON _icu4x_version
-            GET ${_icu4x_metadata}
+            GET "${_icu4x_metadata}"
             packages
             ${_i}
             version
@@ -96,7 +96,7 @@ foreach(_i RANGE ${_icu4x_pkg_len_minus_one})
         break()
     endif()
 endforeach()
-get_filename_component(_icu4x_manifest_dir ${_icu4x_manifest_path} DIRECTORY)
+get_filename_component(_icu4x_manifest_dir "${_icu4x_manifest_path}" DIRECTORY)
 
 if(NOT _icu4x_manifest_dir)
     message(
@@ -136,7 +136,7 @@ if(DEFINED CMAKE_FIND_PACKAGE_REDIRECTS_DIR AND NOT PROJECT_IS_TOP_LEVEL)
     )
     write_basic_package_version_file(
         "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/icu4x-config-version.cmake"
-        VERSION ${_icu4x_version}
+        VERSION "${_icu4x_version}"
         COMPATIBILITY SameMajorVersion
     )
 endif()
@@ -150,7 +150,10 @@ if(ICU4X_INSTALL)
     # The archive is private (consumers link icu4x::icu4x, never the file), so
     # install it under a package subdirectory to avoid clashing with an
     # unrelated icu_capi archive in a shared prefix's lib/.
-    install(FILES ${_icu4x_lib_path} DESTINATION ${CMAKE_INSTALL_LIBDIR}/icu4x)
+    install(
+        FILES "${_icu4x_lib_path}"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/icu4x"
+    )
 
     # Stage the ICU4X C++ headers out of the cargo registry cache into the build
     # tree at configure time, then install from there. This keeps
@@ -158,36 +161,36 @@ if(ICU4X_INSTALL)
     # between configure and install; install(DIRECTORY) from a missing source
     # would otherwise silently install no headers. (file(COPY) also fails loudly
     # here if the headers are somehow absent at configure time.)
-    set(_icu4x_staged_include ${CMAKE_CURRENT_BINARY_DIR}/icu4x-include)
+    set(_icu4x_staged_include "${CMAKE_CURRENT_BINARY_DIR}/icu4x-include")
     file(
-        COPY ${_icu4x_manifest_dir}/bindings/cpp/
-        DESTINATION ${_icu4x_staged_include}
+        COPY "${_icu4x_manifest_dir}/bindings/cpp/"
+        DESTINATION "${_icu4x_staged_include}"
         FILES_MATCHING
         PATTERN "*.hpp"
         PATTERN "*.h"
     )
     install(
-        DIRECTORY ${_icu4x_staged_include}/
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        DIRECTORY "${_icu4x_staged_include}/"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     )
 
     configure_package_config_file(
-        ${CMAKE_CURRENT_LIST_DIR}/cmake/icu4x-config.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config.cmake
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/icu4x
+        "${CMAKE_CURRENT_LIST_DIR}/cmake/icu4x-config.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/icu4x-config.cmake"
+        INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/icu4x"
         PATH_VARS CMAKE_INSTALL_LIBDIR CMAKE_INSTALL_INCLUDEDIR
     )
 
     write_basic_package_version_file(
-        ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config-version.cmake
-        VERSION ${_icu4x_version}
+        "${CMAKE_CURRENT_BINARY_DIR}/icu4x-config-version.cmake"
+        VERSION "${_icu4x_version}"
         COMPATIBILITY SameMajorVersion
     )
 
     install(
         FILES
-            ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config.cmake
-            ${CMAKE_CURRENT_BINARY_DIR}/icu4x-config-version.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/icu4x
+            "${CMAKE_CURRENT_BINARY_DIR}/icu4x-config.cmake"
+            "${CMAKE_CURRENT_BINARY_DIR}/icu4x-config-version.cmake"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/icu4x"
     )
 endif()

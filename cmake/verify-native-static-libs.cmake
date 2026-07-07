@@ -35,17 +35,17 @@ else()
     set(_icu4x_cargo_target_args "")
 endif()
 
-include(${CMAKE_CURRENT_LIST_DIR}/native-static-libs.cmake)
+include("${CMAKE_CURRENT_LIST_DIR}/native-static-libs.cmake")
 set(_embedded ${ICU4X_NATIVE_STATIC_LIBS} ${ICU4X_NATIVE_STATIC_LINK_OPTIONS})
 
-set(_repo ${CMAKE_CURRENT_LIST_DIR}/..)
+set(_repo "${CMAKE_CURRENT_LIST_DIR}/..")
 
 # rustc only prints the note when it actually compiles, so force a fresh build.
 # If the clean fails, rustc may not recompile and no note would be emitted, so
 # check it here to fail with an accurate message.
 execute_process(
     COMMAND cargo clean --release -p icu_capi ${_icu4x_cargo_target_args}
-    WORKING_DIRECTORY ${_repo}
+    WORKING_DIRECTORY "${_repo}"
     RESULT_VARIABLE _clean_result
 )
 if(NOT _clean_result EQUAL 0)
@@ -59,7 +59,7 @@ execute_process(
     COMMAND
         cargo rustc --color never --release -p icu_capi --crate-type staticlib
         ${_icu4x_cargo_target_args} -- --print native-static-libs
-    WORKING_DIRECTORY ${_repo}
+    WORKING_DIRECTORY "${_repo}"
     OUTPUT_QUIET
     ERROR_VARIABLE _stderr
     RESULT_VARIABLE _result
