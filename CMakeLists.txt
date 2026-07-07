@@ -149,7 +149,10 @@ endif()
 # library and the ICU4X C++ bindings headers into the install tree and ships a
 # hand-written config that rebuilds the imported targets there.
 if(ICU4X_INSTALL)
-    install(FILES ${_icu4x_lib_path} DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    # The archive is private (consumers link icu4x::icu4x, never the file), so
+    # install it under a package subdirectory to avoid clashing with an
+    # unrelated icu_capi archive in a shared prefix's lib/.
+    install(FILES ${_icu4x_lib_path} DESTINATION ${CMAKE_INSTALL_LIBDIR}/icu4x)
 
     # Stage the ICU4X C++ headers out of the cargo registry cache into the build
     # tree at configure time, then install from there. This keeps

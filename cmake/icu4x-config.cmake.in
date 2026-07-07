@@ -19,7 +19,7 @@ if(NOT TARGET icu4x::icu4x)
         _icu4x_imported
         PROPERTIES
             IMPORTED_LOCATION
-                "@PACKAGE_CMAKE_INSTALL_LIBDIR@/${_icu4x_lib_name}"
+                "@PACKAGE_CMAKE_INSTALL_LIBDIR@/icu4x/${_icu4x_lib_name}"
             INTERFACE_LINK_LIBRARIES "@ICU4X_NATIVE_STATIC_LIBS@"
             INTERFACE_LINK_OPTIONS "@ICU4X_NATIVE_STATIC_LINK_OPTIONS@"
     )
