@@ -26,11 +26,16 @@ if(WIN32 AND NOT MINGW)
     )
     set(ICU4X_NATIVE_STATIC_LINK_OPTIONS /defaultlib:msvcrt)
 elseif(WIN32)
-    # target: *-pc-windows-gnu (MinGW). Links a different native set than MSVC
-    # and cannot consume /defaultlib directives.
-    # PLACEHOLDER: to be replaced with the exact set the windows-gnu CI job
-    # reports on its first run (see .github/workflows/native-static-libs.yml).
-    set(ICU4X_NATIVE_STATIC_LIBS __icu4x_mingw_placeholder__)
+    # target: *-pc-windows-gnu (MinGW). The same system libraries as MSVC, but
+    # named GNU-style and without the /defaultlib CRT directive. Confirmed via
+    # the windows-gnu CI job.
+    set(ICU4X_NATIVE_STATIC_LIBS
+        -lkernel32
+        -lntdll
+        -luserenv
+        -lws2_32
+        -ldbghelp
+    )
     set(ICU4X_NATIVE_STATIC_LINK_OPTIONS "")
 elseif(APPLE)
     # target: *-apple-darwin (confirmed via CI on macOS)
