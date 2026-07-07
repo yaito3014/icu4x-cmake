@@ -14,8 +14,24 @@
 #   ICU4X_NATIVE_STATIC_LINK_OPTIONS  - linker directives for INTERFACE_LINK_OPTIONS
 #                                       (e.g. MSVC's /defaultlib:...), which must
 #                                       not be treated as library files.
+#
+# The table is keyed on a single ICU4X_PLATFORM selector. A caller may set it
+# explicitly (the CI verifier does, so it can check a cross target); otherwise it
+# is derived from the toolchain below.
 
-if(WIN32 AND NOT MINGW)
+if(NOT DEFINED ICU4X_PLATFORM)
+    if(WIN32 AND NOT MINGW)
+        set(ICU4X_PLATFORM windows-msvc)
+    elseif(WIN32)
+        set(ICU4X_PLATFORM windows-gnu)
+    elseif(APPLE)
+        set(ICU4X_PLATFORM apple)
+    else()
+        set(ICU4X_PLATFORM unix)
+    endif()
+endif()
+
+if(ICU4X_PLATFORM STREQUAL windows-msvc)
     # target: *-pc-windows-msvc
     set(ICU4X_NATIVE_STATIC_LIBS
         kernel32.lib
@@ -25,7 +41,7 @@ if(WIN32 AND NOT MINGW)
         dbghelp.lib
     )
     set(ICU4X_NATIVE_STATIC_LINK_OPTIONS /defaultlib:msvcrt)
-elseif(WIN32)
+elseif(ICU4X_PLATFORM STREQUAL windows-gnu)
     # target: *-pc-windows-gnu (MinGW). The same system libraries as MSVC, but
     # named GNU-style and without the /defaultlib CRT directive. Confirmed via
     # the windows-gnu CI job.
@@ -37,11 +53,11 @@ elseif(WIN32)
         -ldbghelp
     )
     set(ICU4X_NATIVE_STATIC_LINK_OPTIONS "")
-elseif(APPLE)
+elseif(ICU4X_PLATFORM STREQUAL apple)
     # target: *-apple-darwin (confirmed via CI on macOS)
     set(ICU4X_NATIVE_STATIC_LIBS -lSystem -lc -liconv -lm)
     set(ICU4X_NATIVE_STATIC_LINK_OPTIONS "")
-else()
+elseif(ICU4X_PLATFORM STREQUAL unix)
     # target: *-unknown-linux-gnu
     set(ICU4X_NATIVE_STATIC_LIBS
         -lgcc_s
@@ -53,4 +69,6 @@ else()
         -lc
     )
     set(ICU4X_NATIVE_STATIC_LINK_OPTIONS "")
+else()
+    message(FATAL_ERROR "icu4x: unknown ICU4X_PLATFORM '${ICU4X_PLATFORM}'")
 endif()

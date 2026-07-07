@@ -32,15 +32,13 @@ set(_icu4x_lib_name
 )
 set(_icu4x_lib_path ${_icu4x_target_dir}/release/${_icu4x_lib_name})
 
-# The icu_capi static library depends on system libraries that a Rust static
-# library does not record on its own, and they must be linked for downstream
-# linking to succeed (notably on MSVC, where they are not auto-linked). Rather
-# than compile icu_capi at configure time to discover them, the lists are
-# embedded per platform. Their accuracy is checked against
-# `rustc --print native-static-libs` in CI (see cmake/verify-native-static-libs.cmake).
-# This sets ICU4X_NATIVE_STATIC_LIBS and ICU4X_NATIVE_STATIC_LINK_OPTIONS.
+# Sets ICU4X_NATIVE_STATIC_LIBS and ICU4X_NATIVE_STATIC_LINK_OPTIONS -- the
+# system libraries icu_capi must be linked against. See the file for rationale.
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/native-static-libs.cmake)
 
+# icu_capi is always built for the host target; no --target is passed, so
+# cross-compilation (a CMAKE_TOOLCHAIN_FILE targeting another arch/OS) is not
+# supported.
 add_custom_command(
     OUTPUT ${_icu4x_lib_path}
     COMMAND

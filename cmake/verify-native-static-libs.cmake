@@ -7,33 +7,30 @@
 
 cmake_minimum_required(VERSION 3.21)
 
-# native-static-libs.cmake branches on WIN32/APPLE/UNIX/MINGW (target variables).
-# In script mode there is no toolchain, so set those either from the host
-# (default) or from an explicit target triple in ICU4X_VERIFY_TARGET -- which
-# also lets us verify a cross target such as x86_64-pc-windows-gnu on a Windows
-# runner. When set, the triple is passed to cargo via --target.
+# native-static-libs.cmake selects its table by the ICU4X_PLATFORM key. Set it
+# from the host (default) or from an explicit target triple in
+# ICU4X_VERIFY_TARGET -- which also lets us verify a cross target such as
+# x86_64-pc-windows-gnu on a Windows runner. When set, the triple is passed to
+# cargo via --target.
 set(_icu4x_verify_target "$ENV{ICU4X_VERIFY_TARGET}")
 if(_icu4x_verify_target)
     if(_icu4x_verify_target MATCHES "windows-gnu")
-        set(WIN32 1)
-        set(MINGW 1)
+        set(ICU4X_PLATFORM windows-gnu)
     elseif(_icu4x_verify_target MATCHES "windows")
-        set(WIN32 1)
+        set(ICU4X_PLATFORM windows-msvc)
     elseif(_icu4x_verify_target MATCHES "apple|darwin")
-        set(APPLE 1)
-        set(UNIX 1)
+        set(ICU4X_PLATFORM apple)
     else()
-        set(UNIX 1)
+        set(ICU4X_PLATFORM unix)
     endif()
     set(_icu4x_cargo_target_args --target ${_icu4x_verify_target})
 else()
     if(CMAKE_HOST_WIN32)
-        set(WIN32 1)
+        set(ICU4X_PLATFORM windows-msvc)
     elseif(CMAKE_HOST_APPLE)
-        set(APPLE 1)
-    endif()
-    if(CMAKE_HOST_UNIX)
-        set(UNIX 1)
+        set(ICU4X_PLATFORM apple)
+    else()
+        set(ICU4X_PLATFORM unix)
     endif()
     set(_icu4x_cargo_target_args "")
 endif()
@@ -44,10 +41,20 @@ set(_embedded ${ICU4X_NATIVE_STATIC_LIBS} ${ICU4X_NATIVE_STATIC_LINK_OPTIONS})
 set(_repo ${CMAKE_CURRENT_LIST_DIR}/..)
 
 # rustc only prints the note when it actually compiles, so force a fresh build.
+# If the clean fails, rustc may not recompile and no note would be emitted, so
+# check it here to fail with an accurate message.
 execute_process(
     COMMAND cargo clean --release -p icu_capi ${_icu4x_cargo_target_args}
     WORKING_DIRECTORY ${_repo}
+    RESULT_VARIABLE _clean_result
 )
+if(NOT _clean_result EQUAL 0)
+    message(
+        FATAL_ERROR
+        "cargo clean failed (${_clean_result}); cannot force a fresh build to "
+        "read native-static-libs."
+    )
+endif()
 execute_process(
     COMMAND
         cargo rustc --color never --release -p icu_capi --crate-type staticlib
