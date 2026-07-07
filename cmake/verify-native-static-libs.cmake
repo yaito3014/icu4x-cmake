@@ -69,19 +69,27 @@ endif()
 string(STRIP "${CMAKE_MATCH_1}" _line)
 string(REGEX REPLACE " +" ";" _actual "${_line}")
 
-# Compare as sets: presence of every entry is what matters for link correctness;
-# the order rustc prints them in is not significant for detecting drift.
-set(_embedded_sorted ${_embedded})
-set(_actual_sorted ${_actual})
-list(SORT _embedded_sorted)
-list(SORT _actual_sorted)
+# Compare as a set (deduplicated, order-independent). What matters is that every
+# library rustc reports is present in the table and vice versa. Order is
+# intentionally not checked: the table splits libraries from linker directives
+# across two properties, so the combined order already differs from rustc's, and
+# these are order-insensitive system libraries. Dedup matters because rustc may
+# print the same library more than once; list(SORT) alone keeps duplicates, so
+# without REMOVE_DUPLICATES a repeated entry would force a spurious "out of date"
+# and push the maintainer to embed a pointless duplicate.
+set(_embedded_set ${_embedded})
+set(_actual_set ${_actual})
+list(REMOVE_DUPLICATES _embedded_set)
+list(REMOVE_DUPLICATES _actual_set)
+list(SORT _embedded_set)
+list(SORT _actual_set)
 
-if(NOT "${_embedded_sorted}" STREQUAL "${_actual_sorted}")
+if(NOT "${_embedded_set}" STREQUAL "${_actual_set}")
     message(
         FATAL_ERROR
         "Embedded native-static-libs is out of date for this platform.\n"
-        "  embedded: ${_embedded_sorted}\n"
-        "  actual:   ${_actual_sorted}\n"
+        "  embedded: ${_embedded_set}\n"
+        "  actual:   ${_actual_set}\n"
         "Update cmake/native-static-libs.cmake to match 'actual' "
         "(remember to route /-prefixed directives to ICU4X_NATIVE_STATIC_LINK_OPTIONS)."
     )
