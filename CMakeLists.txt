@@ -9,10 +9,28 @@ include(CMakePackageConfigHelpers)
 
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
 
+execute_process(
+    COMMAND ${CARGO_EXECUTABLE} metadata --format-version 1
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    OUTPUT_VARIABLE _icu4x_metadata
+    RESULT_VARIABLE _icu4x_metadata_result
+)
+if(NOT _icu4x_metadata_result EQUAL 0)
+    message(
+        FATAL_ERROR
+        "icu4x: `cargo metadata` failed (${_icu4x_metadata_result}); "
+        "cannot locate the icu_capi package or its C++ bindings headers."
+    )
+endif()
+
+# cargo honours CARGO_TARGET_DIR and workspace target directories, so ask
+# metadata where build artifacts actually land instead of assuming ./target.
+string(JSON _icu4x_target_dir GET ${_icu4x_metadata} target_directory)
+
 set(_icu4x_lib_name
     "${CMAKE_STATIC_LIBRARY_PREFIX}icu_capi${CMAKE_STATIC_LIBRARY_SUFFIX}"
 )
-set(_icu4x_lib_path ${CMAKE_CURRENT_LIST_DIR}/target/release/${_icu4x_lib_name})
+set(_icu4x_lib_path ${_icu4x_target_dir}/release/${_icu4x_lib_name})
 
 # The icu_capi static library depends on system libraries that a Rust static
 # library does not record on its own, and they must be linked for downstream
@@ -54,20 +72,6 @@ set_target_properties(
         INTERFACE_LINK_OPTIONS "${ICU4X_NATIVE_STATIC_LINK_OPTIONS}"
 )
 add_dependencies(_icu4x_imported _icu4x_build)
-
-execute_process(
-    COMMAND ${CARGO_EXECUTABLE} metadata --format-version 1
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    OUTPUT_VARIABLE _icu4x_metadata
-    RESULT_VARIABLE _icu4x_metadata_result
-)
-if(NOT _icu4x_metadata_result EQUAL 0)
-    message(
-        FATAL_ERROR
-        "icu4x: `cargo metadata` failed (${_icu4x_metadata_result}); "
-        "cannot locate the icu_capi package or its C++ bindings headers."
-    )
-endif()
 
 string(JSON _icu4x_pkg_len LENGTH ${_icu4x_metadata} packages)
 math(EXPR _icu4x_pkg_len_minus_one "${_icu4x_pkg_len} - 1")
