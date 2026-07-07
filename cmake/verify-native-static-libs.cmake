@@ -7,16 +7,35 @@
 
 cmake_minimum_required(VERSION 3.21)
 
-# native-static-libs.cmake branches on WIN32/APPLE/UNIX (target variables). In
-# script mode there is no target, so mirror the host onto those variables so the
-# same branch is selected for the platform we are verifying.
-if(CMAKE_HOST_WIN32)
-    set(WIN32 1)
-elseif(CMAKE_HOST_APPLE)
-    set(APPLE 1)
-endif()
-if(CMAKE_HOST_UNIX)
-    set(UNIX 1)
+# native-static-libs.cmake branches on WIN32/APPLE/UNIX/MINGW (target variables).
+# In script mode there is no toolchain, so set those either from the host
+# (default) or from an explicit target triple in ICU4X_VERIFY_TARGET -- which
+# also lets us verify a cross target such as x86_64-pc-windows-gnu on a Windows
+# runner. When set, the triple is passed to cargo via --target.
+set(_icu4x_verify_target "$ENV{ICU4X_VERIFY_TARGET}")
+if(_icu4x_verify_target)
+    if(_icu4x_verify_target MATCHES "windows-gnu")
+        set(WIN32 1)
+        set(MINGW 1)
+    elseif(_icu4x_verify_target MATCHES "windows")
+        set(WIN32 1)
+    elseif(_icu4x_verify_target MATCHES "apple|darwin")
+        set(APPLE 1)
+        set(UNIX 1)
+    else()
+        set(UNIX 1)
+    endif()
+    set(_icu4x_cargo_target_args --target ${_icu4x_verify_target})
+else()
+    if(CMAKE_HOST_WIN32)
+        set(WIN32 1)
+    elseif(CMAKE_HOST_APPLE)
+        set(APPLE 1)
+    endif()
+    if(CMAKE_HOST_UNIX)
+        set(UNIX 1)
+    endif()
+    set(_icu4x_cargo_target_args "")
 endif()
 
 include(${CMAKE_CURRENT_LIST_DIR}/native-static-libs.cmake)
@@ -26,13 +45,13 @@ set(_repo ${CMAKE_CURRENT_LIST_DIR}/..)
 
 # rustc only prints the note when it actually compiles, so force a fresh build.
 execute_process(
-    COMMAND cargo clean --release -p icu_capi
+    COMMAND cargo clean --release -p icu_capi ${_icu4x_cargo_target_args}
     WORKING_DIRECTORY ${_repo}
 )
 execute_process(
     COMMAND
         cargo rustc --color never --release -p icu_capi --crate-type staticlib
-        -- --print native-static-libs
+        ${_icu4x_cargo_target_args} -- --print native-static-libs
     WORKING_DIRECTORY ${_repo}
     OUTPUT_QUIET
     ERROR_VARIABLE _stderr
